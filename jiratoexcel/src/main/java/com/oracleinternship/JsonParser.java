@@ -2,8 +2,6 @@ package com.oracleinternship;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -222,29 +220,5 @@ public class JsonParser {
         }
 
         return result;
-    }
-
-    private String getLinkedIssuesText(JsonNode issuelinksNode) {
-        if (issuelinksNode == null || !issuelinksNode.isArray()) {
-            return "";
-        }
-
-        List<String> linkedIssueKeys = new ArrayList<>();
-        for (JsonNode link : issuelinksNode) {
-            if (link.has("outwardIssue")) {
-                JsonNode outward = link.get("outwardIssue");
-                if (outward.has("key")) {
-                    linkedIssueKeys.add(outward.get("key").asText());
-                }
-            }
-            if (link.has("inwardIssue")) {
-                JsonNode inward = link.get("inwardIssue");
-                if (inward.has("key")) {
-                    linkedIssueKeys.add(inward.get("key").asText());
-                }
-            }
-        }
-
-        return String.join(", ", linkedIssueKeys);
     }
 }

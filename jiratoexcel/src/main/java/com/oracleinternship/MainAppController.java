@@ -10,6 +10,7 @@ import javafx.scene.control.DatePicker;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
+import javafx.scene.layout.GridPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
@@ -76,6 +77,15 @@ public class MainAppController {
     private Button addProjectButton;
 
     @FXML
+    private GridPane issueTypesContainer;
+
+    @FXML
+    private TextField newIssueTypeField;
+
+    @FXML
+    private Button addIssueTypeButton;
+
+    @FXML
     private StackPane statusContainer;
 
     @FXML
@@ -99,7 +109,7 @@ public class MainAppController {
         statusArea.appendText("⚠️ The application may appear unresponsive during this time. \n");
         issueKeyField.setDisable(true); // Disable issue key field by default
         issueKeyLabel.setDisable(true); // Disable issue key label by default
-        
+
         // Initialize Project ComboBox with default projects
         if (projectComboBox != null) {
             projectComboBox.setItems(FXCollections.observableArrayList(
@@ -107,6 +117,30 @@ public class MainAppController {
                 "All Projects"
             ));
             projectComboBox.setValue("DTVIEWER"); // Set default selection
+        }
+
+        // Initialize Issue Types CheckBoxes with default issue types in a dynamic grid layout
+        if (issueTypesContainer != null) {
+            String[] defaultIssueTypes = {
+                "Bug", "Task", "Story", "Epic", "Sub-task", "Issue Investigation", "Spike", "Strategic Obligation", "Release", 
+            };
+
+            // Set some basic grid properties
+            issueTypesContainer.setHgap(15); // Horizontal gap between columns
+            issueTypesContainer.setVgap(8);  // Vertical gap between rows
+
+            // Add all default checkboxes
+            for (String issueType : defaultIssueTypes) {
+                CheckBox checkBox = new CheckBox(issueType);
+                checkBox.setSelected(false); // Select all by default
+                if (issueType.equals("Issue Investigation")) {
+                    checkBox.setSelected(true); // Pre-select "Issue Investigation"
+                }
+                issueTypesContainer.getChildren().add(checkBox);
+            }
+
+            // Arrange checkboxes in optimal grid layout
+            rearrangeCheckboxesInGrid();
         }
     }
 
@@ -124,6 +158,70 @@ public class MainAppController {
             }
         } else {
             statusArea.appendText("Please enter a project key.\n");
+        }
+    }
+
+    @FXML
+    private void addIssueType() {
+        String newIssueType = newIssueTypeField.getText().trim();
+        if (newIssueType != null && !newIssueType.isEmpty()) {
+            // Check if issue type already exists
+            boolean exists = false;
+            for (var node : issueTypesContainer.getChildren()) {
+                if (node instanceof CheckBox checkBox && checkBox.getText().equals(newIssueType)) {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists) {
+                CheckBox checkBox = new CheckBox(newIssueType);
+                checkBox.setSelected(true); // Auto-select the new item
+                issueTypesContainer.getChildren().add(checkBox);
+
+                // Rearrange all checkboxes in optimal grid layout
+                rearrangeCheckboxesInGrid();
+
+                statusArea.appendText("Added issue type: " + newIssueType + "\n");
+                newIssueTypeField.clear();
+            } else {
+                statusArea.appendText("Issue type '" + newIssueType + "' already exists.\n");
+            }
+        } else {
+            statusArea.appendText("Please enter an issue type.\n");
+        }
+    }
+
+    /**
+     * Rearranges all checkboxes in the GridPane to form an optimal grid layout.
+     * This method calculates the best number of columns and rows for a square-like aspect ratio.
+     */
+    private void rearrangeCheckboxesInGrid() {
+        List<CheckBox> checkboxes = new java.util.ArrayList<>();
+        for (var node : issueTypesContainer.getChildren()) {
+            if (node instanceof CheckBox checkBox) {
+                checkboxes.add(checkBox);
+            }
+        }
+
+        int totalCheckboxes = checkboxes.size();
+        if (totalCheckboxes == 0) return;
+
+        // Calculate optimal grid dimensions (most square-like)
+        int columns = (int) Math.ceil(Math.sqrt(totalCheckboxes));
+        // int rows = (int) Math.ceil((double) totalCheckboxes / columns);
+
+        // Clear existing constraints
+        issueTypesContainer.getChildren().clear();
+
+        // Re-add checkboxes with new positioning
+        int index = 0;
+        for (CheckBox checkBox : checkboxes) {
+            int row = index / columns;
+            int col = index % columns;
+            GridPane.setConstraints(checkBox, col, row);
+            issueTypesContainer.getChildren().add(checkBox);
+            index++;
         }
     }
 
@@ -150,8 +248,6 @@ public class MainAppController {
             statusArea.appendText("Error exporting to Excel: " + e.getMessage() + "\n");
         }
     }
-
-
 
     private void exportSingleTicket(String format) throws IOException, InterruptedException {
         String ticketKey = getIssueKey();
@@ -211,9 +307,9 @@ public class MainAppController {
         searchMessage.append("...\n");
         statusArea.appendText(searchMessage.toString());
 
-
-        JiraApiClient jiraClient = new JiraApiClient(getJiraUrl(), getPersonalAccessToken(), false);
-        String searchResponse = jiraClient.searchIssues(startDate, endDate, assignee, project);
+        List<String> selectedIssueTypes = getSelectedIssueTypes();
+        JiraApiClient jiraClient = new JiraApiClient(getJiraUrl(), getPersonalAccessToken(), true);
+        String searchResponse = jiraClient.searchIssues(startDate, endDate, assignee, project, selectedIssueTypes);
 
         JsonParser parser = new JsonParser(searchResponse);
         List<Ticket> tickets = parser.parseSearchResults();
@@ -306,6 +402,18 @@ public class MainAppController {
         return assigneeField.getText();
     }
 
+    public List<String> getSelectedIssueTypes() {
+        List<String> selectedTypes = new java.util.ArrayList<>();
+        if (issueTypesContainer != null) {
+            for (var node : issueTypesContainer.getChildren()) {
+                if (node instanceof CheckBox checkBox && checkBox.isSelected()) {
+                    selectedTypes.add(checkBox.getText());
+                }
+            }
+        }
+        return selectedTypes;
+    }
+
     @FXML
     public void specificBoxToggled() {
         boolean isSpecific = specificTicketCheck.isSelected();
@@ -320,6 +428,9 @@ public class MainAppController {
         newProjectField.setDisable(isSpecific);
         addProjectButton.setDisable(isSpecific);
         projectComboBox.setDisable(isSpecific);
+        issueTypesContainer.setDisable(isSpecific);
+        newIssueTypeField.setDisable(isSpecific);
+        addIssueTypeButton.setDisable(isSpecific);
         toLabel.setDisable(isSpecific);
         fromLabel.setDisable(isSpecific);
         dateRangeLabel.setDisable(isSpecific);
@@ -346,12 +457,6 @@ public class MainAppController {
             statusArea.appendText("Date range set: " + start + " to " + end + "\n");
         }
     }
-
-    // public void setDateRange(LocalDate startDate, LocalDate endDate) {
-    //     this.startDate = startDate;
-    //     this.endDate = endDate;
-    //     statusArea.appendText("Date range set: " + startDate + " to " + endDate + "\n");
-    // }
 
     public LocalDate getStartDate() {
         return startDate;
