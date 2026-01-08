@@ -14,8 +14,10 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.StackPane;
+import javafx.stage.DirectoryChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -94,7 +96,14 @@ public class MainAppController {
     @FXML
     private DatePicker datePicker1, datePicker2;
 
+    @FXML
+    private Button directorySelectButton;
+
+    @FXML
+    private CheckBox updateExcelCheckBox;
+
     private Stage primaryStage;
+    private String exportDirectory = "test"; // Default export directory
 
     public void setPrimaryStage(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -113,21 +122,22 @@ public class MainAppController {
         // Initialize Project ComboBox with default projects
         if (projectComboBox != null) {
             projectComboBox.setItems(FXCollections.observableArrayList(
-                "DTVIEWER",  // Default project
-                "All Projects"
-            ));
+                    "DTVIEWER", // Default project
+                    "All Projects"));
             projectComboBox.setValue("DTVIEWER"); // Set default selection
         }
 
-        // Initialize Issue Types CheckBoxes with default issue types in a dynamic grid layout
+        // Initialize Issue Types CheckBoxes with default issue types in a dynamic grid
+        // layout
         if (issueTypesContainer != null) {
             String[] defaultIssueTypes = {
-                "Bug", "Task", "Story", "Epic", "Sub-task", "Issue Investigation", "Spike", "Strategic Obligation", "Release", 
+                    "Bug", "Task", "Story", "Epic", "Sub-task", "Issue Investigation", "Spike", "Strategic Obligation",
+                    "Release",
             };
 
             // Set some basic grid properties
             issueTypesContainer.setHgap(15); // Horizontal gap between columns
-            issueTypesContainer.setVgap(8);  // Vertical gap between rows
+            issueTypesContainer.setVgap(8); // Vertical gap between rows
 
             // Add all default checkboxes
             for (String issueType : defaultIssueTypes) {
@@ -194,7 +204,8 @@ public class MainAppController {
 
     /**
      * Rearranges all checkboxes in the GridPane to form an optimal grid layout.
-     * This method calculates the best number of columns and rows for a square-like aspect ratio.
+     * This method calculates the best number of columns and rows for a square-like
+     * aspect ratio.
      */
     private void rearrangeCheckboxesInGrid() {
         List<CheckBox> checkboxes = new java.util.ArrayList<>();
@@ -205,7 +216,8 @@ public class MainAppController {
         }
 
         int totalCheckboxes = checkboxes.size();
-        if (totalCheckboxes == 0) return;
+        if (totalCheckboxes == 0)
+            return;
 
         // Calculate optimal grid dimensions (most square-like)
         int columns = (int) Math.ceil(Math.sqrt(totalCheckboxes));
@@ -241,7 +253,8 @@ public class MainAppController {
                 if (startDate != null && endDate != null) {
                     exportTicketsByDateRange("Excel");
                 } else {
-                    statusArea.appendText("Please select a date range first or check 'Grab Specific Ticket?' for single ticket mode.\n");
+                    statusArea.appendText(
+                            "Please select a date range first or check 'Grab Specific Ticket?' for single ticket mode.\n");
                 }
             }
         } catch (Exception e) {
@@ -269,19 +282,19 @@ public class MainAppController {
         // Create a list with single ticket for ExcelWriter compatibility
         List<Ticket> tickets = List.of(ticket);
 
-        // Ensure test directory exists
-        Path testDir = Paths.get("test");
+        // Ensure export directory exists
+        Path exportDir = Paths.get(exportDirectory);
         try {
-            Files.createDirectories(testDir);
+            Files.createDirectories(exportDir);
         } catch (IOException e) {
-            statusArea.appendText("Error creating test directory: " + e.getMessage() + "\n");
+            statusArea.appendText("Error creating export directory: " + e.getMessage() + "\n");
         }
 
         String fileName = "ticket_" + ticketKey + (format.equals("CSV") ? ".csv" : ".xlsx");
-        String filePath = "test/" + fileName;
+        String filePath = exportDirectory + File.separator + fileName;
 
         if (format.equals("Excel")) {
-            ExcelWriter.writeTickets(tickets, filePath, getJiraUrl());
+            ExcelWriter.writeTickets(tickets, filePath, getJiraUrl(), "Single Ticket", updateExcelCheckBox.isSelected());
             statusArea.appendText("Exported ticket to: " + filePath + "\n");
         } else {
             // TODO: Implement CSV export for single ticket
@@ -318,31 +331,49 @@ public class MainAppController {
 
         if (tickets.isEmpty()) {
             String noTicketsMessage = assignee != null && !assignee.trim().isEmpty()
-                ? "No tickets found for the selected date range and assignee.\n"
-                : "No tickets found for the selected date range.\n";
+                    ? "No tickets found for the selected date range and assignee.\n"
+                    : "No tickets found for the selected date range.\n";
             statusArea.appendText(noTicketsMessage);
             return;
         }
 
-        // Ensure test directory exists
-        Path testDir = Paths.get("test");
+        // Ensure export directory exists
+        Path exportDir = Paths.get(exportDirectory);
         try {
-            Files.createDirectories(testDir);
+            Files.createDirectories(exportDir);
         } catch (IOException e) {
-            statusArea.appendText("Error creating test directory: " + e.getMessage() + "\n");
+            statusArea.appendText("Error creating export directory: " + e.getMessage() + "\n");
         }
 
-        String assigneeSuffix = assignee != null && !assignee.trim().isEmpty() ? "_assigned_to_" + assignee.replace(" ", "_") : "";
-        String projectSuffix = project != null && !project.trim().isEmpty() && !"All Projects".equals(project) ? "_project_" + project : "";
-        String fileName = "tickets_" + startDate + "_to_" + endDate + projectSuffix + assigneeSuffix + (format.equals("CSV") ? ".csv" : ".xlsx");
-        String filePath = "test/" + fileName;
+        String assigneeSuffix = assignee != null && !assignee.trim().isEmpty()
+                ? "_assigned_to_" + assignee.replace(" ", "_")
+                : "";
+        String projectSuffix = project != null && !project.trim().isEmpty() && !"All Projects".equals(project)
+                ? "_project_" + project
+                : "";
+        String fileName = "tickets_" + startDate + "_to_" + endDate + projectSuffix + assigneeSuffix
+                + (format.equals("CSV") ? ".csv" : ".xlsx");
+        String filePath = exportDirectory + File.separator + fileName;
 
         if (format.equals("Excel")) {
-            ExcelWriter.writeTickets(tickets, filePath, getJiraUrl());
+            ExcelWriter.writeTickets(tickets, filePath, getJiraUrl(), startDate + " to " + endDate, updateExcelCheckBox.isSelected());
             statusArea.appendText("Exported " + tickets.size() + " tickets to: " + filePath + "\n");
         } else {
             // TODO: Implement CSV export for multiple tickets
             statusArea.appendText("CSV export for multiple tickets not yet implemented.\n");
+        }
+    }
+
+    @FXML
+    private void selectExportDirectory() {
+        DirectoryChooser directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Select Export Directory");
+        directoryChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+
+        File selectedDirectory = directoryChooser.showDialog(primaryStage);
+        if (selectedDirectory != null) {
+            exportDirectory = selectedDirectory.getAbsolutePath();
+            statusArea.appendText("Export directory set to: " + exportDirectory + "\n");
         }
     }
 
@@ -352,7 +383,8 @@ public class MainAppController {
 
         // Create a temporary label for the fading message
         Label fadeLabel = new Label("Status cleared");
-        fadeLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2e7d32; -fx-background-color: rgba(255, 255, 255, 0.9); -fx-padding: 10px; -fx-background-radius: 5px;");
+        fadeLabel.setStyle(
+                "-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #2e7d32; -fx-background-color: rgba(255, 255, 255, 0.9); -fx-padding: 10px; -fx-background-radius: 5px;");
         fadeLabel.setMaxWidth(Double.MAX_VALUE);
         fadeLabel.setAlignment(Pos.CENTER);
 
@@ -437,6 +469,18 @@ public class MainAppController {
         projectLabel.setDisable(isSpecific);
         assigneeLabel.setDisable(isSpecific);
         issueKeyLabel.setDisable(!isSpecific);
+    }
+
+    @FXML
+    public void updateCheckBoxSelected() {
+        if (updateExcelCheckBox.isSelected()) {
+            statusArea.appendText("Update Existing Excel mode enabled.\n");
+            statusArea.appendText("This creates a new sheet in the existing workbook over the same date range.\n");
+        } else {
+            statusArea.appendText("Create New Excel mode enabled.\n");
+            statusArea.appendText("This creates a new workbook, overwriting any existing file over the same date range..\n");
+
+        }
     }
 
     public String getSelectedProject() {

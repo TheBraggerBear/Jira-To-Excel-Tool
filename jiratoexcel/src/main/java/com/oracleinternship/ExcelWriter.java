@@ -12,6 +12,8 @@ import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import java.io.FileInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -22,38 +24,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ExcelWriter {
-    public static void writeIssues(String[] issues, String filePath) throws IOException {
-        // Delete existing file if it exists to ensure overwrite
-        File file = new File(filePath);
-        if (file.exists()) {
-            file.delete();
-        }
-        try (XSSFWorkbook wb = new XSSFWorkbook(); FileOutputStream out = new FileOutputStream(filePath)) {
-            XSSFSheet sheet = wb.createSheet("Issues");
-            int row = 0;
-            XSSFRow header = sheet.createRow(row++);
-            header.createCell(0).setCellValue("ID");
-            header.createCell(1).setCellValue("Summary");
-            header.createCell(2).setCellValue("Status");
 
-            for (String issue : issues) {
-                XSSFRow r = sheet.createRow(row++);
-                r.createCell(0).setCellValue(issue);
+    public static void writeTickets(List<Ticket> tickets, String filePath, String baseUrl, String dateRange, boolean updateExisting) throws IOException {
+        File file = new File(filePath);
+        XSSFWorkbook wb;
+        if (updateExisting && file.exists()) {
+            try (FileInputStream fis = new FileInputStream(file)) {
+                wb = (XSSFWorkbook) WorkbookFactory.create(fis);
             }
-
-            for (int i = 0; i < 3; i++) sheet.autoSizeColumn(i);
-            wb.write(out);
+        } else {
+            if (file.exists()) {
+                file.delete();
+            }
+            wb = new XSSFWorkbook();
         }
-    }
-
-    public static void writeTickets(List<Ticket> tickets, String filePath, String baseUrl) throws IOException {
-        // Delete existing file if it exists to ensure overwrite
-        File file = new File(filePath);
-        if (file.exists()) {
-            file.delete();
-        }
-        try (XSSFWorkbook wb = new XSSFWorkbook(); FileOutputStream out = new FileOutputStream(filePath)) {
-            XSSFSheet sheet = wb.createSheet("Tickets");
+        try (FileOutputStream out = new FileOutputStream(filePath)) {
+            XSSFSheet sheet = wb.createSheet(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HHmmss")) + " from " + dateRange);
 
             // Create header style (green accent 6, 50% darker - Excel theme color)
             CellStyle headerStyle = wb.createCellStyle();

@@ -1,5 +1,6 @@
 com/oracleinternship/Main.class
 com/oracleinternship/JsonParser.class
+module-info.class
 com/oracleinternship/ExcelWriter.class
 com/oracleinternship/MainAppController.class
 com/oracleinternship/JiraApiClient.class
